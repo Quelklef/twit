@@ -34,24 +34,15 @@ class Tweet:
 def tweets(search):
     """ Get tweets, bruh """
     data = json.loads(twitter.get("https://api.twitter.com/1.1/search/tweets.json", params={'q': search, 'tweet_mode': 'extended'}).content.decode('utf-8'))
+
     for tweet in data['statuses']:
         yield Tweet(tweet)
 
-def timeline(identif, count=200):
+def timeline(user, count):
     """ identif can be user id or user twitter handle (without '@') """
     assert count <= 200
 
-    uid = name = None
-    if type(identif) is int:
-        uid = identif
-    elif type(identif) is str:
-        name = identif
-    else:
-        raise ValueError("Must be an int id or str handle")
-
-    if uid: params = {'user_id': uid}
-    else: params = {'screen_name': name}
-    params.update({'count': count, 'tweet_mode': 'extended'})
+    params = {'count': count, 'tweet_mode': 'extended', 'user_id': user.id}
     data = json.loads(twitter.get("https://api.twitter.com/1.1/statuses/user_timeline.json", params=params).content.decode('utf-8'))
 
     for tweet in data:
