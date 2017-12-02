@@ -14,6 +14,14 @@ class User:
         users[uid] = user
         return user
 
+    @staticmethod
+    def from_name(name):
+        return User(json.loads(twitter.get("https://api.twitter.com/1.1/users/lookup.json", params={'screen_name': name}).content.decode('utf-8'))[0])
+
+    @staticmethod
+    def from_id(uid):
+        return User(json.loads(twitter.get("https://api.twitter.com/1.1/users/lookup.json", params={"user_id": uid}).content.decode('utf-8'))[0])
+
     def __init__(self, info):
         self.id = info['id']
         self.desc = info['description']

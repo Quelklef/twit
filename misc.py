@@ -14,6 +14,11 @@ class Avg:
     def avg(self):
         return self.sum / self.count
 
+    def avg_or(self, val):
+        if self.count == 0:
+            return val
+        return self.avg()
+
     def __str__(self):
         return "avg: " + str(self.avg())
     
