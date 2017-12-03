@@ -58,12 +58,10 @@ def timeline(user, count):
             yield Tweet(tweet)
 
 
-def realtime(query):
-    datastream = twitter.get("https://stream.twitter.com/1.1/statuses/filter.json", params={'track': query, 'tweet_mode': 'extended'}, stream=True)
-    
-    current = ""
-
+def realtime(query): 
     while True:
+        current = ""
+        datastream = twitter.get("https://stream.twitter.com/1.1/statuses/filter.json", params={'track': query, 'tweet_mode': 'extended'}, stream=True)
         lineiterator = datastream.iter_lines()
         while True:
             try:
