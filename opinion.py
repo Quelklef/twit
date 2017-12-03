@@ -25,6 +25,8 @@ def get_words(sentence):
     return list(sentence)
 
 def opinion(words):
+    if type(words) is not list:
+        raise ValueError("You're probably calling opinon(string). Call opinion(get_words(string))")
     if not words: return 0
     op = 0
     for word in words:

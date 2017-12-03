@@ -61,7 +61,8 @@ def realtime(query):
     datastream = twitter.get("https://stream.twitter.com/1.1/statuses/filter.json", params={'track': query, 'tweet_mode': 'extended'}, stream=True)
     
     current = ""
-    for line in datastream:
+    for line in datastream.iter_lines():
+        if not line: continue
         current += line.decode('utf-8')
 
         try:
