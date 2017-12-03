@@ -54,26 +54,37 @@ def timeline(user, count):
     data = json.loads(twitter.get("https://api.twitter.com/1.1/statuses/user_timeline.json", params=params).content.decode('utf-8'))
 
     for tweet in data:
-        yield Tweet(tweet)
+        if type(tweet) is dict:  # For some reason was str
+            yield Tweet(tweet)
 
 
 def realtime(query):
     datastream = twitter.get("https://stream.twitter.com/1.1/statuses/filter.json", params={'track': query, 'tweet_mode': 'extended'}, stream=True)
     
     current = ""
-    for line in datastream.iter_lines():
-        if not line: continue
-        current += line.decode('utf-8')
 
-        try:
-            tweet_dict = json.loads(current)
-        except ValueError:
-            pass
-        else:
-            if not 'text' in tweet_dict: continue  # Happens for some reason idk
-            tweet_dict['full_text'] = tweet_dict['text']  # extended mode doesn't seem to be working
-            yield Tweet(tweet_dict)
-            current = ""
+    while True:
+        lineiterator = datastream.iter_lines()
+        while True:
+            try:
+                line = next(lineiterator)
+            except StopIteration:
+                break
+            except Exception as e:
+                print("Error @ datastream loop:\n{}".format(e))
+            
+            if not line: continue
+            current += line.decode('utf-8')
+
+            try:
+                tweet_dict = json.loads(current)
+            except ValueError:
+                pass
+            else:
+                if not 'text' in tweet_dict: continue  # Happens for some reason idk
+                tweet_dict['full_text'] = tweet_dict['text']  # extended mode doesn't seem to be working
+                yield Tweet(tweet_dict)
+                current = ""
 
 if __name__ == "__main__":
     for item in realtime("realDonaldTrump"):
