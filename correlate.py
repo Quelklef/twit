@@ -100,7 +100,10 @@ def render_rs(vals):
         screen.blit(pygame.transform.rotate(label, 90), (x, body_padding + 5))
 
         rlabel = small_font.render(str(val)[:4], 1, (255, 255, 255))
-        screen.blit(rlabel, (x, body_padding + 2 * bar_height - small_font_size * 1.2))
+        if val > 0:
+            screen.blit(rlabel, (1 + x, scn_height / 2 - sgn(val) * small_font_size - 5))
+        else:
+            screen.blit(rlabel, (1 + x, scn_height / 2 + 5))
         
         x += bar_width + bar_margin
 
@@ -124,7 +127,7 @@ def init_gfx(nvals):
     body_padding = 30
     bar_width = int(font_size * 1.2)
     bar_margin = 5
-    bar_height = 50
+    bar_height = 150
 
     global scn_width, scn_height
     scn_width = 2 * body_padding + nvals * bar_width + (nvals - 1) * bar_margin
