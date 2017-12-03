@@ -187,10 +187,10 @@ sureness_threshold = 15  # Number of datapoints in StatList needed for r^2 to be
 
 if __name__ == "__main__":
     global term
-    term = 'Trump'#input('Term? ')
+    term = input('Term? ')
 
     global nvals
-    nvals = 40#int(input('# bars? ')) or nvals
+    nvals = int(input('# bars? ')) or nvals
 
     init_gfx(nvals)
     pygame.display.set_caption("Correlations with '{}'".format(term))
