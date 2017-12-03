@@ -57,7 +57,9 @@ class StatList(list):
         sqrt_num = (self.length * self.sumxy - self.sumx * self.sumy)
         num = sqrt_num ** 2
         val = sgn(sqrt_num) * abs(num / denom)
-        if abs(val) > 1: print(val, self)
+        
+        #if abs(val) > 1: print(val, self)
+        
         return val
 
 def sorted_items(sorteddict):
@@ -72,7 +74,7 @@ def render_rs(vals):
     global count
     """ takes list of values (floats) in [-1, 1]
     len(vals) must be equal to the arugment passed to init_gfx """
-    bar_color = (255, 0, 100)
+    bar_color = (255, 0, 200)
     font_color = (255, 255, 255)
    
     pygame.draw.rect(screen, (0,0,0), (0, 0, scn_width, scn_height))
@@ -94,7 +96,11 @@ def render_rs(vals):
         pygame.draw.rect(screen, bar_color, rect)
 
         label = font.render(word, 1, font_color)
-        screen.blit(label, (x, scn_height / 2 + ((sgn(val) * font_size) if val < 0 else 0) ))
+        #screen.blit(label, (x, scn_height / 2 + ((sgn(val) * font_size) if val < 0 else 0) ))
+        screen.blit(pygame.transform.rotate(label, 90), (x, body_padding + 5))
+
+        rlabel = small_font.render(str(val)[:4], 1, (255, 255, 255))
+        screen.blit(rlabel, (x, body_padding + 2 * bar_height - small_font_size * 1.2))
         
         x += bar_width + bar_margin
 
@@ -108,12 +114,16 @@ def init_gfx(nvals):
     font_size = 20
     font = pygame.font.SysFont("calibri", font_size)
 
+    global small_font, small_font_size
+    small_font_size = 8
+    small_font = pygame.font.SysFont("monospace", small_font_size)
+
     """ Janky quick fix: global vars b.c no vim copy-paste knowledge """
 
     global body_padding, bar_width, bar_margin, bar_height
     body_padding = 30
-    bar_width = 80
-    bar_margin = 10
+    bar_width = int(font_size * 1.2)
+    bar_margin = 5
     bar_height = 50
 
     global scn_width, scn_height
@@ -171,11 +181,14 @@ def realtime_correlate(query):
                 run = False
 
 sureness_threshold = 15  # Number of datapoints in StatList needed for r^2 to be graphically displayed
-nvals = 10
 
 if __name__ == "__main__":
     global term
-    term = input('Term? ')
+    term = 'Trump'#input('Term? ')
+
+    global nvals
+    nvals = 40#int(input('# bars? ')) or nvals
+
     init_gfx(nvals)
     pygame.display.set_caption("Correlations with '{}'".format(term))
     realtime_correlate(term)

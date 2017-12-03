@@ -70,6 +70,7 @@ def realtime(query):
         except ValueError:
             pass
         else:
+            if not 'text' in tweet_dict: continue  # Happens for some reason idk
             tweet_dict['full_text'] = tweet_dict['text']  # extended mode doesn't seem to be working
             yield Tweet(tweet_dict)
             current = ""
