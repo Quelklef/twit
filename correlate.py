@@ -91,6 +91,8 @@ def render_rs(vals):
     x = body_padding
     rects = []
     for word, val in vals:
+        bar_color = (int(abs(val) ** 0.2 * 255), 0, 180)
+
         if val < 0: rect = (x, scn_height / 2, bar_width, abs(val) * bar_height)
         else: rect = (x, scn_height / 2 - val * bar_height, bar_width, abs(val) * bar_height)
         pygame.draw.rect(screen, bar_color, rect)
