@@ -102,7 +102,7 @@ def sorted_items(sorteddict):
         yield (key, sorteddict[key])
 
 
-count = 0
+count = -1
 BLACK = (0, 0, 0)
 
 
@@ -115,8 +115,9 @@ def render_once(surface, settings):
 @log.watch_time(0.5)
 def render_rs(vals, surface, settings):
     global count
-    """ takes list of values (floats) in [-1, 1]
-    len(vals) must be equal to the arugment passed to init_gfx """
+    count += 1
+    if count % settings['display_every'] != 0:
+        return
 
     font = settings['font']
     font_size = settings['font_size']
@@ -149,14 +150,16 @@ def render_rs(vals, surface, settings):
     x += body_padding
     for word, statlist in vals:
         val = statlist.correlation()
-        count = statlist.length
+        datapoint_count = statlist.length
 
-        s = 2 / (1 + math.e ** (-count / settings['strictness'])) - 1
+        s = 2 / (1 + math.e ** (-datapoint_count / settings['strictness'])) - 1
         actual_color = (main_color[0] * s, main_color[1] * s, main_color[2] * s)
+
+        y += bar_margin
 
         pygame.draw.rect(surface, BLACK, (0, y, scn_width, bar_height))  # TODO
         rects.append((0, y, scn_width, bar_height))
-        bar_end = y + bar_height + bar_margin
+        bar_end = y + bar_height
 
         scaled = abs(val * bar_width)
         if val < 0:
@@ -172,7 +175,7 @@ def render_rs(vals, surface, settings):
         surface.blit(word_label, (int(midx - word_label_size[0] / 2), y))
         y += font_size
 
-        strval = f"{str(val)[:4]} [{count}]"
+        strval = f"{str(val)[:4]} [{datapoint_count}]"
         #strval = str(val)[:4]
         val_label = small_font.render(strval, 1, aux_color)
         val_label_size = small_font.size(strval)
@@ -182,8 +185,8 @@ def render_rs(vals, surface, settings):
 
         y = bar_end
 
-    pygame.display.update(rects)
-    count += 1
+    #pygame.display.update(rects)
+    pygame.display.flip()
 
 
 def pygame_events():

@@ -28,6 +28,7 @@ small_font = pygame.font.SysFont("monospace", small_font_size)
 body_padding = 30
 
 bar_width = 400
+# Note: displayed on top of EVERY bar
 bar_margin = 10
 bar_height = font_size + small_font_size + 1 * 2
 
@@ -48,8 +49,11 @@ Ignore below
 
 """
 
+# Display every n frames
+display_every = 10
+
 bar_padding = int((bar_height - font_size - small_font_size) / 2)
 if bar_padding < 0: raise ValueError("Bars too small to contain labels")
 
 scn_width = 2 * body_padding + 2 * bar_width
-scn_height = 2 * body_padding + bar_count * (bar_height + bar_margin) - bar_margin + font_size
+scn_height = 2 * body_padding + bar_count * (bar_height + bar_margin) + font_size
