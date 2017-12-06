@@ -1,57 +1,95 @@
 import requests as req
 import requests_oauthlib as oauth
+from urllib.parse import parse_qs
 
 import json
 
-#
-# In auth.json put
-# Consumer key and consumer secret
-# Will ask for all else that is needed
-#
+# File contains twitter consumer and secret key as JSON
+AUTH_JSON = "auth.json"
 
-with open('auth.json') as authf:
-    auth = json.load(authf)
+# Keys in said JSON
+CONSUMER_KEY_STR = "consumer_key"
+CONSUMER_SECRET_STR = "consumer_secret"
+TOKEN_STR = "token"
+SECRET_STR = "secret"
+ALL_KEYS = (CONSUMER_KEY_STR, CONSUMER_SECRET_STR, TOKEN_STR, SECRET_STR)
 
-auth1 = oauth.OAuth1(auth['consumer_key'], auth['consumer_secret'])
 
-if 'token' not in auth or 'secret' not in auth:
-    if __name__ != "__main__":
-        raise Exception("Have not generated token and secret. Please run as main module.")
+def setup():
+    """ Disclaimer: I don't know how OAuth works. """
 
-    # Generate token + secret
+    print("Go to https://apps.twitter.com/apps and click on or create your relevant app.")
 
-    r = req.get("https://api.twitter.com/oauth/request_token", auth=auth1)
-    key, secret = list(map(lambda s: s.split('=')[1], r.content.decode('utf-8').split('&')[:2]))
+    consumer_key = input("Twitter consumer key: ")
+    consumer_secret = input("Twitter consumer secret: ")
 
-    print("Please authorize @ https://api.twitter.com/oauth/authorize?oauth_token=" + key)
-    verif = input("Verifier: ")
+    auth1 = oauth.OAuth1(consumer_key, consumer_secret)
+    reply1 = req.get("https://api.twitter.com/oauth/request_token", auth=auth1)
+    content1 = parse_qs(reply1.content.decode('utf-8'))
+    resource_key = content1['oauth_token'][0]
+    resource_secret = content1['oauth_token_secret'][0]
 
-    oauth2 = oauth.OAuth1(
-            auth['consumer_key'],
-            client_secret=auth['consumer_secret'],
-            resource_owner_key=key,
-            resource_owner_secret=secret,
-            verifier=verif)
+    verifier = input(f"Code from https://api.twitter.com/oauth/authorize?oauth_token={resource_key}: ")
 
-    cred = req.post("https://api.twitter.com/oauth/access_token", auth=oauth2)
+    auth2 = oauth.OAuth1(
+        consumer_key,
+        client_secret=consumer_secret,
+        resource_owner_key=resource_key,
+        resource_owner_secret=resource_secret,
+        verifier=verifier
+    )
 
-    token, sec2 = list(map(lambda s: s.split('=')[1], cred.content.decode('utf-8').split('&')[:2]))
+    reply2 = req.post("https://api.twitter.com/oauth/access_token", auth=auth2)
+    content2 = parse_qs(reply2.content.decode('utf-8'))
+    token = content2['oauth_token'][0]
+    secret = content2['oauth_token_secret'][0]
 
-    auth['token'] = token
-    auth['secret'] = sec2
-    
-    with open('auth.json', 'w') as authf:
-        json.dump(auth, authf)
+    auth = {
+        CONSUMER_KEY_STR: consumer_key,
+        CONSUMER_SECRET_STR: consumer_secret,
+        TOKEN_STR: token,
+        SECRET_STR: secret
+    }
+
+    with open(AUTH_JSON, 'w') as file:
+        json.dump(auth, file)
+
+    return auth
+
+
+def valid_json():
+    """ Whether or not the json file is as we want it """
+    try:
+        f = open(AUTH_JSON)
+    except FileNotFoundError:
+        return False
+
+    with f:
+        vals = json.load(f)
+    return all(key in vals for key in ALL_KEYS)
+
+
+if valid_json():
+    if __name__ == "__main__":
+        print("Everything is properly set up.")
+
+    with open(AUTH_JSON) as f:
+        auth = json.load(f)
+else:
+    if __name__ != '__main__':
+        raise Exception(f"{AUTH_JSON} is invalid. Please run {__file__} as main module.")
+
+    auth = setup()
+
 
 # Have token + secret
-
 def sess():
-    """ Return request session authenticated w/ twitter API """
-    twitter = oauth.OAuth1Session(
-            auth['consumer_key'],
-            client_secret=auth['consumer_secret'],
-            resource_owner_key=auth['token'],
-            resource_owner_secret=auth['secret'])
-    return twitter
+    """ Return request session authenticated w/ Twitter API """
+    return oauth.OAuth1Session(
+            auth[CONSUMER_KEY_STR],
+            client_secret=auth[CONSUMER_SECRET_STR],
+            resource_owner_key=auth[TOKEN_STR],
+            resource_owner_secret=auth[SECRET_STR]
+    )
 
 
