@@ -3,6 +3,9 @@ import opinion as op
 from collections import defaultdict
 from sortedcontainers import SortedDict
 import pygame
+import sys
+import log
+import math
 
 pygame.init()
 
@@ -100,6 +103,16 @@ def sorted_items(sorteddict):
 
 
 count = 0
+BLACK = (0, 0, 0)
+
+
+def render_once(surface, settings):
+    title = settings['font'].render(f"Correlations with '{settings['term']}'", 1, settings['main_color'])
+    surface.blit(title, (settings['body_padding'],) * 2 + settings['font'].size(settings['term']))
+    pygame.display.flip()
+
+
+@log.watch_time(0.5)
 def render_rs(vals, surface, settings):
     global count
     """ takes list of values (floats) in [-1, 1]
@@ -111,48 +124,75 @@ def render_rs(vals, surface, settings):
     bar_width = settings['bar_width']
     bar_height = settings['bar_height']
     bar_margin = settings['bar_margin']
+    bar_padding = settings['bar_padding']
     small_font = settings['small_font']
-    small_font_size = settings['small_font_size']
-    bar_color = settings['bar_color']
-    font_color = settings['font_color']
-    small_font_color = settings['small_font_color']
+    #small_font_size = settings['small_font_size']
+    #scn_height = settings['scn_height']
+    scn_width = settings['scn_width']
+    main_color = settings['main_color']
+    aux_color = settings['aux_color']
 
-    pygame.draw.rect(surface, (0, 0, 0), (0, 0, scn_width, scn_height))
+    x = y = 0
+    y += body_padding
+    midx = scn_width / 2
+    rects = []
 
-    counter = font.render(str(count), 1, bar_color)
-    surface.blit(counter, (body_padding, body_padding - font_size))
+    counter = font.render(str(count), 1, main_color)
+    counter_size = counter.get_size()
+    counter_pos = (scn_width - body_padding - counter_size[0], y)
+    counter_rect = counter_pos + counter_size
+    pygame.draw.rect(surface, BLACK, counter_rect)
+    surface.blit(counter, counter_pos)
+    rects.append(counter_rect)
+    y += counter_size[1]
 
-    title = font.render(term, 1, bar_color)
-    surface.blit(title, (body_padding, scn_height - body_padding + 5))
+    x += body_padding
+    for word, statlist in vals:
+        val = statlist.correlation()
+        count = statlist.length
 
-    pygame.draw.rect(surface, bar_color, (body_padding, body_padding - 1, scn_width - 2 * body_padding, 1))
-    pygame.draw.rect(surface, bar_color, (body_padding, scn_height - body_padding, scn_width - 2 * body_padding, 1))
+        s = 2 / (1 + math.e ** (-count / settings['strictness'])) - 1
+        actual_color = (main_color[0] * s, main_color[1] * s, main_color[2] * s)
 
-    x = body_padding
-    for word, val in vals:
-        bar_color = (int(abs(val) ** 0.2 * 255), 0, 180)
+        pygame.draw.rect(surface, BLACK, (0, y, scn_width, bar_height))  # TODO
+        rects.append((0, y, scn_width, bar_height))
+        bar_end = y + bar_height + bar_margin
 
+        scaled = abs(val * bar_width)
         if val < 0:
-            rect = (x, scn_height / 2, bar_width, abs(val) * bar_height)
+            bar = (midx - scaled, y, scaled, bar_height)
         else:
-            rect = (x, scn_height / 2 - val * bar_height, bar_width, abs(val) * bar_height)
-        pygame.draw.rect(surface, bar_color, rect)
+            bar = (midx, y, scaled, bar_height)
+        pygame.draw.rect(surface, actual_color, bar)
+        y += bar_padding
 
-        label = font.render(word, 1, font_color)
-        surface.blit(pygame.transform.rotate(label, 90), (x, body_padding + 5))
+        word_label = font.render(word, 1, aux_color)
+        word_label_size = font.size(word)
 
-        rlabel = small_font.render(str(val)[:4], 1, small_font_color)
-        if val > 0:
-            surface.blit(rlabel, (1 + x, scn_height / 2 - sgn(val) * small_font_size - 5))
-        else:
-            surface.blit(rlabel, (1 + x, scn_height / 2 + 5))
+        surface.blit(word_label, (int(midx - word_label_size[0] / 2), y))
+        y += font_size
 
-        x += bar_width + bar_margin
+        strval = f"{str(val)[:4]} [{count}]"
+        #strval = str(val)[:4]
+        val_label = small_font.render(strval, 1, aux_color)
+        val_label_size = small_font.size(strval)
 
-    pygame.display.flip()  # TODO
+        surface.blit(val_label, (int(midx - val_label_size[0] / 2), y))
+        #y += small_font_size
+
+        y = bar_end
+
+    pygame.display.update(rects)
     count += 1
 
 
+def pygame_events():
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            sys.exit(0)
+
+
+@log.watch_time(0.5)
 def realtime_correlate(query, surface, settings):
     # Yash is the query
 
@@ -163,47 +203,42 @@ def realtime_correlate(query, surface, settings):
     # {noun: [(opinion of Yash, opinion of noun)]
     vals = defaultdict(StatList)
 
+    # {noun: correlation}
     _rs = dict()
-    # {noun: sgn(r) * (r^2)}
+    # {noun: StatList}
     rs = SortedDict(lambda k: -abs(_rs[k]))
 
     def add_r(k, v):
         """ Use instead of rs[k] = v, but don't ask why. """
-        _rs[k] = v
+        _rs[k] = v.correlation()
         rs[k] = v
 
-    run = True
     for tweet in stream:
-        if not run: break
         opin = op.opinion(op.get_words(tweet['text']))  # User opinion of Yash
         prof = op.profile(tweet['user']['id'])  # User opinion of everything else; {noun: opinion}
-        prof.pop(query, None)  # Don't track user opinion of Yash in profile
 
         for noun in prof:
             vals[noun].append((opin, prof[noun]))
-
-            if noun in rs:
-                del rs[noun]
-            add_r(noun, vals[noun].correlation())
+            if noun in rs: del rs[noun]  # Needed, but I don't know why
+            add_r(noun, vals[noun])
 
         rendered_rs = []
         count_desire = bar_count
         for item in sorted_items(rs):
+            if count_desire == 0:
+                break
+
             noun, r = item
             if vals[noun].length >= sureness_threshold:
                 rendered_rs.append(item)
                 count_desire -= 1
-                if count_desire == 0:
-                    break
 
+        pygame_events()
         render_rs(rendered_rs, surface, settings)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
+        pygame_events()
 
 
-if __name__ == "__main__":
+def main():
     settings = get_settings()
 
     scn_width = settings['scn_width']
@@ -213,4 +248,9 @@ if __name__ == "__main__":
     surface = pygame.display.set_mode((scn_width, scn_height))
 
     pygame.display.set_caption("Correlations with '{}'".format(term))
+    render_once(surface, settings)
     realtime_correlate(term, surface, settings)
+
+
+if __name__ == "__main__":
+    main()

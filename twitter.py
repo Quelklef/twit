@@ -1,8 +1,9 @@
 
-import json
+import ujson as json
 import requests
 from log import logger
 from auth import sess
+import time
 
 
 """
@@ -57,7 +58,10 @@ def realtime(query):
         datastream = twitter.get("https://stream.twitter.com/1.1/statuses/filter.json",
                                  params={'track': query, 'tweet_mode': 'extended'}, stream=True)
         lineiterator = datastream.iter_lines()
+
         while True:
+            start_time = time.time()
+
             try:
                 line = next(lineiterator)
             except StopIteration:
@@ -69,13 +73,21 @@ def realtime(query):
             current += line.decode('utf-8')
 
             try:
-                tweet_dict = json.loads(current)  # TODO: Not properly receiving some tweets
+                tweet_dict = json.loads(current)
             except ValueError:
-                pass
-            else:
-                if not 'text' in tweet_dict: continue  # Happens for some reason idk
-                tweet_dict['full_text'] = tweet_dict['text']  # extended mode doesn't seem to be working
-                normalize_tweet(tweet_dict)
-                yield tweet_dict
-                current = ""
+                continue  # Keep trying until works
+            if 'text' not in tweet_dict and 'full_text' not in tweet_dict:
+                # Happens for some reason idk
+                logger.warning("Received tweet with no .text and no .full_text")
+                continue
+
+            tweet_dict['full_text'] = tweet_dict['text']  # extended mode doesn't seem to be working
+            normalize_tweet(tweet_dict)
+
+            process_time = time.time() - start_time
+            if process_time > 0.5:
+                logger.warning(f"Took {process_time}s to get & process Tweet")
+
+            yield tweet_dict
+            current = ""
 
