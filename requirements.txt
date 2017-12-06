@@ -10,3 +10,4 @@ requests-oauthlib==0.8.0
 sortedcontainers==1.5.7
 tinydb==3.7.0
 urllib3==1.22
+ujson==1.35
