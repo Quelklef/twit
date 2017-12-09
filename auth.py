@@ -1,7 +1,7 @@
 import requests as req
 import requests_oauthlib as oauth
 from urllib.parse import parse_qs
-
+import log
 import json
 
 # File contains twitter consumer and secret key as JSON
@@ -79,6 +79,7 @@ else:
     if __name__ != '__main__':
         raise Exception(f"{AUTH_JSON} is invalid. Please run {__file__} as main module.")
 
+    log.logger.info("Setting up authorization data...")
     auth = setup()
 
 

@@ -1,13 +1,15 @@
 import twitter as tw
 import opinion as op
-from collections import defaultdict
-from sortedcontainers import SortedDict
+from misc import SortedDict
 import pygame
 import sys
 import log
 import math
+import itertools as it
 
 pygame.init()
+#pygame.event.set_allowed([QUIT, KEYDOWN, KEYUP])
+pygame.event.set_allowed([pygame.QUIT])
 
 import correlate_py_settings
 
@@ -96,10 +98,8 @@ class StatList(list):
         val = sgn(sqrt_num) * abs(num / denom)
         return val
 
-
-def sorted_items(sorteddict):
-    for key in sorteddict:
-        yield (key, sorteddict[key])
+    def __str__(self):
+        return "stat" + super().__str__()
 
 
 count = -1
@@ -113,7 +113,7 @@ def render_once(surface, settings):
 
 
 @log.watch_time(0.5)
-def render_rs(vals, surface, settings):
+def render_rs(statlists, surface, settings):
     global count
     count += 1
     if count % settings['display_every'] != 0:
@@ -148,12 +148,19 @@ def render_rs(vals, surface, settings):
     y += counter_size[1]
 
     x += body_padding
-    for word, statlist in vals:
+
+    #datapoint_counts = [statlist.length for word, statlist in statlists]
+    #max_datapoint_count = max(datapoint_counts) if datapoint_counts else None
+    #min_datapoint_count = min(datapoint_counts) if datapoint_counts else None
+
+    for i, (word, statlist) in enumerate(statlists):
         val = statlist.correlation()
+        #datapoint_count = datapoint_counts[i]
         datapoint_count = statlist.length
 
-        s = 2 / (1 + math.e ** (-datapoint_count / settings['strictness'])) - 1
-        actual_color = (main_color[0] * s, main_color[1] * s, main_color[2] * s)
+        rgb_scalar = 2 / (1 + math.e ** (-datapoint_count / settings['strictness'])) - 1
+        #rgb_scalar = (datapoint_count - min_datapoint_count) / (max_datapoint_count - min_datapoint_count)
+        actual_color = (main_color[0] * rgb_scalar, main_color[1] * rgb_scalar, main_color[2] * rgb_scalar)
 
         y += bar_margin
 
@@ -185,8 +192,7 @@ def render_rs(vals, surface, settings):
 
         y = bar_end
 
-    #pygame.display.update(rects)
-    pygame.display.flip()
+    pygame.display.update(rects)
 
 
 def pygame_events():
@@ -195,7 +201,6 @@ def pygame_events():
             sys.exit(0)
 
 
-@log.watch_time(0.5)
 def realtime_correlate(query, surface, settings):
     # Yash is the query
 
@@ -204,38 +209,21 @@ def realtime_correlate(query, surface, settings):
     stream = tw.realtime(query)
 
     # {noun: [(opinion of Yash, opinion of noun)]
-    vals = defaultdict(StatList)
-
-    # {noun: correlation}
-    _rs = dict()
-    # {noun: StatList}
-    rs = SortedDict(lambda k: -abs(_rs[k]))
-
-    def add_r(k, v):
-        """ Use instead of rs[k] = v, but don't ask why. """
-        _rs[k] = v.correlation()
-        rs[k] = v
+    noun_statlist_map = SortedDict(key=lambda k: -abs(noun_statlist_map[k].correlation()))
 
     for tweet in stream:
         opin = op.opinion(op.get_words(tweet['text']))  # User opinion of Yash
         prof = op.profile(tweet['user']['id'])  # User opinion of everything else; {noun: opinion}
 
         for noun in prof:
-            vals[noun].append((opin, prof[noun]))
-            if noun in rs: del rs[noun]  # Needed, but I don't know why
-            add_r(noun, vals[noun])
+            if noun not in noun_statlist_map:
+                noun_statlist_map[noun] = StatList()
+            noun_statlist_map.mutate_val(noun, lambda: noun_statlist_map[noun].append((opin, prof[noun])))
 
-        rendered_rs = []
-        count_desire = bar_count
-        for item in sorted_items(rs):
-            if count_desire == 0:
-                break
-
-            noun, r = item
-            if vals[noun].length >= sureness_threshold:
-                rendered_rs.append(item)
-                count_desire -= 1
-
+        rendered_rs = it.islice(
+            (item for item in noun_statlist_map.items() if item[1].length >= sureness_threshold),
+            bar_count
+        )
         pygame_events()
         render_rs(rendered_rs, surface, settings)
         pygame_events()
@@ -250,10 +238,11 @@ def main():
 
     surface = pygame.display.set_mode((scn_width, scn_height))
 
-    pygame.display.set_caption("Correlations with '{}'".format(term))
+    pygame.display.set_caption(f"Correlations with <{term}>")
     render_once(surface, settings)
     realtime_correlate(term, surface, settings)
 
 
 if __name__ == "__main__":
+    log.logger.info(f"{__file__} main section run.")
     main()

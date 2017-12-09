@@ -39,8 +39,8 @@ def tweets(search):
 
 
 def timeline(uid, count):
-    """ identif can be user id or user twitter handle (without '@') """
-    assert count <= 200
+    if count > 200:
+        raise ValueError("Count must be <= 200")
 
     params = {'count': count, 'tweet_mode': 'extended', 'user_id': uid}
     data = json.loads(
@@ -81,7 +81,6 @@ def realtime(query):
                 logger.warning("Received tweet with no .text and no .full_text")
                 continue
 
-            tweet_dict['full_text'] = tweet_dict['text']  # extended mode doesn't seem to be working
             normalize_tweet(tweet_dict)
 
             process_time = time.time() - start_time
